@@ -676,7 +676,7 @@ function renderAll(){
  $('footBox').innerHTML=`<div><div class="brand" style="margin-bottom:14px">${logo}<span><b style="color:#fff">${esc(b.name)}</b><span class="sub">${esc(b.tagline)}</span></span></div>
    <p style="font-size:14.5px;margin:0">${esc(b.address)}</p><p style="font-size:14.5px;margin-top:8px">${esc(b.email)}</p></div>
   <div><h4>أرقام الأقسام</h4>${C.departments.map(d=>`<a href="tel:${esc(d.p)}">${esc(d.n)} · ${esc(d.p)}</a>`).join('')}</div>
-  <div><h4>روابط</h4>${C.nav.map(p=>`<a onclick="go('${p.id}')">${esc(p.label)}</a>`).join('')}<a onclick="openGate()">لوحة التحكم</a></div>`;
+  <div><h4>روابط</h4>${C.nav.map(p=>`<a onclick="go('${p.id}')">${esc(p.label)}</a>`).join('')}</div>`;
  $('footBot').textContent=b.copyright;
  $('waBtn').href='https://wa.me/'+b.whatsapp;
  markNav();
@@ -814,11 +814,23 @@ function imgField(label,path,prev,hint){
 async function upImg(inp,path){
  const f=inp.files[0];if(!f)return;
  const label=inp.closest('.fld');const old=label?label.querySelector('label').textContent:'';
+ // instant local preview so the admin sees something happen right away
+ const localPreview=URL.createObjectURL(f);
+ setDeep(path,localPreview);renderAll();renderAdmin();
  if(label)label.querySelector('label').textContent='⏳ جاري الرفع…';
- const url=await uploadToStorage(f);
+ guardUnload(true);
+ const {url,errMsg}=await uploadToStorage(f);
+ guardUnload(false);
  if(label)label.querySelector('label').textContent=old;
- if(!url){alert('فشل رفع الصورة — تأكد من الإنترنت وحاول تاني');return}
+ if(!url){
+  alert('فشل رفع الصورة فعلياً على السحابة (الصورة اللي شايفها دلوقتي مؤقتة وهتختفي لو قفلت الصفحة):\n'+(errMsg||'خطأ غير معروف')+'\n\nتأكد من الإنترنت وجرّب تاني.');
+  return;
+ }
  setDeep(path,url);renderAll();renderAdmin();
+}
+function guardUnload(on){
+ if(on){ window.onbeforeunload=()=>'في حفظ شغال دلوقتي — متقفلش الصفحة.'; }
+ else{ window.onbeforeunload=null; }
 }
 function setDeep(path,val){const m=path.match(/^(\w+)\[(\d+)\]\.(\w+)$/);
  if(m){C[m[1]][+m[2]][m[3]]=val;return}set(path,val)}
@@ -983,12 +995,14 @@ const PRESETS={
 function preset(k){Object.assign(C.theme,PRESETS[k]);applyTheme();renderAll();renderAdmin()}
 async function applyAll(){
  renderAll();
- openM(`<div style="text-align:center"><div style="font-size:38px">☁️</div><h3 style="font-size:20px;margin-top:8px">جاري الحفظ على السحابة…</h3></div>`);
- const ok=await saveToCloud();
+ openM(`<div style="text-align:center"><div style="font-size:38px">☁️</div><h3 style="font-size:20px;margin-top:8px">جاري الحفظ على السحابة…</h3><p style="color:var(--muted);font-size:13px">متقفلش الصفحة لحد ما تخلص.</p></div>`);
+ guardUnload(true);
+ const {ok,errMsg}=await saveToCloud();
+ guardUnload(false);
  if(ok){
   openM(`<div style="text-align:center"><div style="font-size:38px">✅</div><h3 style="font-size:20px;margin-top:8px">اتحفظ وطبّق على كل الأجهزة</h3><button class="btn btn-full" style="margin-top:16px" onclick="closeM();closeAdmin()">شوف الموقع</button></div>`);
  }else{
-  openM(`<div style="text-align:center"><div style="font-size:38px">⚠️</div><h3 style="font-size:20px;margin-top:8px">اتحفظ محلياً بس، فشل الحفظ السحابي</h3><p style="color:var(--muted);font-size:13.5px">تأكد من الإنترنت وحاول تاني، أو صدّر نسخة احتياطية.</p><button class="btn btn-full" style="margin-top:16px" onclick="closeM()">تمام</button></div>`);
+  openM(`<div style="text-align:center"><div style="font-size:38px">⚠️</div><h3 style="font-size:20px;margin-top:8px">فشل الحفظ السحابي</h3><p style="color:var(--muted);font-size:13px;direction:ltr;text-align:left;background:#f5f5f5;padding:8px;border-radius:8px;margin-top:10px">${esc(errMsg)}</p><p style="color:var(--muted);font-size:13px;margin-top:10px">التعديل لسه محفوظ محلياً بس مش على السحابة. جرّب تاني.</p><button class="btn btn-full" style="margin-top:16px" onclick="closeM()">تمام</button></div>`);
  }
 }
 function exportJSON(){const blob=new Blob([JSON.stringify({config:C,requests:REQUESTS},null,2)],{type:'application/json'});
@@ -1033,16 +1047,16 @@ function deepMerge(base,over){
 async function saveToCloud(){
  try{
   const {error}=await sb.from('site_settings').upsert({id:1,config:C,updated_at:new Date().toISOString()});
-  return !error;
- }catch(e){console.warn('cloud save failed',e);return false}
+  return {ok:!error,errMsg:error?(error.message||JSON.stringify(error)):''};
+ }catch(e){console.warn('cloud save failed',e);return {ok:false,errMsg:(e&&e.message)||String(e)}}
 }
 async function uploadToStorage(file){
  const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
  const path=`${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
  const {error}=await sb.storage.from('branding').upload(path,file,{cacheControl:'3600',upsert:false});
- if(error){console.warn('upload failed',error);return null}
+ if(error){console.warn('upload failed',error);return {url:null,errMsg:error.message||JSON.stringify(error)}}
  const {data}=sb.storage.from('branding').getPublicUrl(path);
- return data.publicUrl;
+ return {url:data.publicUrl,errMsg:''};
 }
 
 loadFromCloud();
