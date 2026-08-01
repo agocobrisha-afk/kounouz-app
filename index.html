@@ -715,7 +715,10 @@ window.addEventListener('popstate',e=>{
  const p=(e.state&&e.state.page)||'home';
  go(p,true);
 });
-safeHistory(()=>history.replaceState({page:'home'},'','#home'));
+safeHistory(()=>{
+ const initialHash=location.hash?location.hash.slice(1):'home';
+ history.replaceState({page:'home'},'',location.hash||'#home');
+});
 function goBack(){
  if(historyOK){ history.back(); return; }
  // fallback for sandboxed/embedded previews where the History API is blocked
