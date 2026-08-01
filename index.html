@@ -807,12 +807,25 @@ const FONTS=["Tajawal","Almarai","Cairo","El Messiri","Readex Pro","Aref Ruqaa"]
 const fontSel=(l,p)=>`<div class="fld"><label>${l}</label><select onchange="setLive('${p}',this.value)">${FONTS.map(f=>`<option ${get(p)===f?'selected':''}>${f}</option>`).join('')}</select></div>`;
 
 function imgField(label,path,prev,hint){
+ const fid='u'+Math.random().toString(36).slice(2,9);
  return `<div class="fld"><label>${label}</label>
-  <div style="display:flex;gap:12px;align-items:center">
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
    ${prev?`<img class="thumb" src="${at(prev)}">`:''}
-   <input type="file" accept="image/*" onchange="upImg(this,'${path}')" style="flex:1"></div>
-   ${prev?`<button class="mini del" style="margin-top:8px" onclick="setDeep('${path}','');renderAll();renderAdmin()">إزالة الصورة</button>`:''}
-   ${hint?`<small style="color:rgba(255,255,255,.45);font-size:12px">${hint}</small>`:''}</div>`;
+   <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+    <input type="file" accept="image/*" onchange="upImg(this,'${path}')">
+    <div style="display:flex;gap:6px">
+     <input id="${fid}" type="text" placeholder="أو الصق رابط صورة (URL) هنا" style="flex:1;font-size:13px">
+     <button class="mini" onclick="pasteImgUrl('${fid}','${path}')">استخدام</button>
+    </div>
+   </div></div>
+   ${prev?`<button class="mini del" onclick="setDeep('${path}','');renderAll();renderAdmin()">إزالة الصورة</button>`:''}
+   ${hint?`<small style="color:rgba(255,255,255,.45);font-size:12px;display:block;margin-top:6px">${hint}</small>`:''}</div>`;
+}
+function pasteImgUrl(fid,path){
+ const v=document.getElementById(fid).value.trim();
+ if(!v){return}
+ if(!/^https?:\/\//.test(v)){alert('الرابط لازم يبدأ بـ http:// أو https://');return}
+ setDeep(path,v);renderAll();renderAdmin();
 }
 async function upImg(inp,path){
  const f=inp.files[0];if(!f)return;
@@ -826,7 +839,7 @@ async function upImg(inp,path){
  guardUnload(false);
  if(label)label.querySelector('label').textContent=old;
  if(!url){
-  alert('فشل رفع الصورة فعلياً على السحابة (الصورة اللي شايفها دلوقتي مؤقتة وهتختفي لو قفلت الصفحة):\n'+(errMsg||'خطأ غير معروف')+'\n\nتأكد من الإنترنت وجرّب تاني.');
+  alert('فشل رفع الصورة فعلياً على السحابة (الصورة اللي شايفها دلوقتي مؤقتة وهتختفي لو قفلت الصفحة):\n'+(errMsg||'خطأ غير معروف')+'\n\nتقدر بديلاً عن كده تلصق رابط صورة جاهز في الخانة التانية.');
   return;
  }
  setDeep(path,url);renderAll();renderAdmin();
@@ -878,7 +891,7 @@ function renderAdmin(){
    ${sel('اتجاه التدرج','hero.gradient',[['linear','مائل'],['soft','من فوق لتحت'],['side','من الجنب']])}</div>`;
  }
  if(adTab==='brand') B.innerHTML=`<div class="ad-note">الشعار والاسم بيظهروا في الهيدر والفوتر والتطبيق.</div>
-  ${imgField('الشعار','brand.logo',C.brand.logo)}
+  ${imgField('الشعار','brand.logo',C.brand.logo,'نصيحة: لو عايز توفر مساحة السحابة، ارفع الصورة على موقع مجاني زي imgbb.com وانسخ الرابط المباشر (Direct link) والصقه هنا.')}
   ${txt('اسم الشركة','brand.name')}${txt('السطر الفرعي','brand.sub')}${txt('التاغلاين','brand.tagline')}
   ${txt('رقم واتساب (دولي بدون +)','brand.whatsapp')}${txt('البريد الإلكتروني','brand.email')}
   ${area('العنوان','brand.address',2)}${txt('حقوق النشر','brand.copyright')}
