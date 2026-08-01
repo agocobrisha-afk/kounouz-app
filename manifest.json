@@ -1,0 +1,19 @@
+{
+  "name": "كنوز للخدمات السياحية والحج والعمرة",
+  "short_name": "كنوز",
+  "description": "تأشيرات، تذاكر طيران، فنادق، عمرة وبرامج سياحية",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#12333B",
+  "theme_color": "#1F5A68",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
