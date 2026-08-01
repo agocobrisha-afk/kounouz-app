@@ -703,8 +703,12 @@ function calcScore(){
  if(Object.keys(quizAns).length<q.length){
   $('scoreOut').innerHTML=`<p style="text-align:center;color:var(--accent);font-size:14px;margin-top:12px">جاوب على كل الأسئلة الأول 🙂</p>`;return}
  let got=0,max=0;
- q.forEach((item,qi)=>{got+=item.o[quizAns[qi]].w;max+=Math.max(...item.o.map(o=>o.w))});
- const pct=Math.round(got/max*100);
+ q.forEach((item,qi)=>{
+  const pts=(item.pts===undefined?1:+item.pts);   // نقاط السؤال نفسه
+  got+=item.o[quizAns[qi]].w*pts;
+  max+=Math.max(...item.o.map(o=>o.w))*pts;
+ });
+ const pct=max?Math.round(got/max*100):0;
  let bg,title,msg;
  if(pct>=75){bg='linear-gradient(135deg,#1F6146,#2E8B63)';title='فرصتك قوية';msg='ملفك مرتب وفرص القبول عالية. جهّز مستنداتك وابدأ الطلب.'}
  else if(pct>=50){bg='linear-gradient(135deg,#B0851C,#E8871E)';title='فرصتك متوسطة';msg='الملف مقبول بس محتاج تقوية — كلّمنا نساعدك تحسّن نقاط الضعف قبل التقديم.'}
@@ -928,7 +932,7 @@ const TABS=[{k:'layout',t:'🧱 ترتيب الصفحة'},{k:'hero',t:'🖼️ �
 function openGate(){$('gate').classList.add('open');setTimeout(()=>$('gatePass').focus(),100)}
 function tryGate(){if($('gatePass').value===C.brand.adminPass){$('gate').classList.remove('open');$('gatePass').value='';openAdmin()}
  else{$('gatePass').value='';$('gatePass').placeholder='كلمة مرور غلط'}}
-function openAdmin(){adOpen=true;$('adminApp').classList.add('open');renderAdmin()}
+function openAdmin(){adOpen=true;$('adminApp').classList.add('open');renderAdmin();reloadRequests()}
 function closeAdmin(){adOpen=false;$('adminApp').classList.remove('open')}
 
 function get(p){return p.split('.').reduce((o,k)=>o&&o[k],C)}
@@ -982,7 +986,11 @@ function setDeep(path,val){
 const addBtn=(fn,label)=>`<button class="btn-full" style="background:rgba(255,255,255,.12);color:#fff;margin-top:6px" onclick="${fn}">+ إضافة ${label}</button>`;
 
 function renderAdmin(){
- $('adTabs').innerHTML=TABS.map(t=>`<button class="${adTab===t.k?'on':''}" onclick="adTab='${t.k}';renderAdmin()">${t.t}</button>`).join('');
+ const newCount=REQUESTS.filter(r=>r.status==='new').length;
+ $('adTabs').innerHTML=TABS.map(t=>{
+  const badge=(t.k==='requests'&&newCount)?` <span style="background:#E8871E;color:#3a2000;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:800">${newCount}</span>`:'';
+  return `<button class="${adTab===t.k?'on':''}" onclick="adTab='${t.k}';renderAdmin()">${t.t}${badge}</button>`;
+ }).join('');
  const B=$('adBody');
 
  if(adTab==='layout') B.innerHTML=`<div class="ad-note">رتّب أقسام الصفحة الرئيسية أو أطفي أي قسم.</div>`+
@@ -1063,7 +1071,9 @@ function renderAdmin(){
    <button class="mini" onclick="moveArr(C.schengen.quiz,${i},-1)">↑</button>
    <button class="mini" onclick="moveArr(C.schengen.quiz,${i},1)">↓</button>
    <button class="mini del" onclick="C.schengen.quiz.splice(${i},1);renderAll();renderAdmin()">حذف</button></div>
-   <div class="fld"><label>نص السؤال</label><input value="${at(q.q)}" oninput="C.schengen.quiz[${i}].q=this.value"></div>
+   <div class="frow c2">
+    <div class="fld"><label>نص السؤال</label><input value="${at(q.q)}" oninput="C.schengen.quiz[${i}].q=this.value"></div>
+    <div class="fld"><label>وزن السؤال (أهميته)</label><input type="number" min="0" step="0.5" value="${q.pts===undefined?1:at(q.pts)}" oninput="C.schengen.quiz[${i}].pts=+this.value"></div></div>
    ${q.o.map((o,j)=>`<div class="frow c2" style="margin-bottom:7px">
     <div class="fld" style="margin:0"><input value="${at(o.t)}" placeholder="الإجابة" oninput="C.schengen.quiz[${i}].o[${j}].t=this.value"></div>
     <div class="fld" style="margin:0;display:flex;gap:6px"><input type="number" value="${at(o.w)}" placeholder="الوزن" oninput="C.schengen.quiz[${i}].o[${j}].w=+this.value">
@@ -1233,9 +1243,25 @@ function deepMerge(base,over){
   for(const k in over){out[k]=(k in base)?deepMerge(base[k],over[k]):over[k]}return out}
  return over===undefined?base:over;
 }
+// Never let base64 / blob images reach the database — that's what bloated
+// the config to 1MB before and broke every save.
+function stripHeavyImages(obj){
+ if(Array.isArray(obj))return obj.map(stripHeavyImages);
+ if(obj&&typeof obj==='object'){
+  const out={};
+  for(const k in obj)out[k]=stripHeavyImages(obj[k]);
+  return out;
+ }
+ if(typeof obj==='string'&&(obj.startsWith('data:')||obj.startsWith('blob:')))return '';
+ return obj;
+}
 async function saveToCloud(){
  if(!sb)return{ok:false,errMsg:'مفيش اتصال بالسحابة'};
- try{const {error}=await sb.from('site_settings').upsert({id:1,config:C,updated_at:new Date().toISOString()});
+ const clean=stripHeavyImages(C);
+ const size=JSON.stringify(clean).length;
+ if(size>400000)return{ok:false,errMsg:'حجم الإعدادات كبير جداً ('+Math.round(size/1024)+'KB). استخدم روابط صور بدل رفع صور ضخمة.'};
+ try{const {error}=await sb.from('site_settings').upsert({id:1,config:clean,updated_at:new Date().toISOString()});
+  if(!error)C=deepMerge(JSON.parse(JSON.stringify(DEFAULTS)),clean);
   return{ok:!error,errMsg:error?(error.message||JSON.stringify(error)):''}}
  catch(e){return{ok:false,errMsg:(e&&e.message)||String(e)}}
 }
@@ -1250,7 +1276,11 @@ async function uploadToStorage(file){
 }
 async function boot(){
  renderAll();
- if(location.hash==='#admin')openGate();
+ if(location.hash==='#admin'){
+  // don't leave #admin in the address bar — a refresh should reopen the SITE
+  safeHistory(()=>history.replaceState({page:'home'},'','#home'));
+  openGate();
+ }
  if(!sb)return;
  try{
   const {data,error}=await sb.from('site_settings').select('config').eq('id',1).maybeSingle();
@@ -1264,7 +1294,27 @@ async function boot(){
 }
 boot();
 
-if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+/* Force any stale cached build to update itself, once. */
+const BUILD='2026-08-02-a';
+if('serviceWorker' in navigator){
+ window.addEventListener('load',async()=>{
+  try{
+   const regs=await navigator.serviceWorker.getRegistrations();
+   const prev=localStorage.getItem('kz_build');
+   if(prev&&prev!==BUILD){
+    // a previous build is cached — nuke everything and reload clean
+    await Promise.all(regs.map(r=>r.unregister()));
+    if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}
+    localStorage.setItem('kz_build',BUILD);
+    location.reload();
+    return;
+   }
+   localStorage.setItem('kz_build',BUILD);
+   const reg=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
+   reg.update();
+  }catch(e){}
+ });
+}
 let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;showInstall()});
 function showInstall(){

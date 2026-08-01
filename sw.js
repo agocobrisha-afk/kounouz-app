@@ -1,43 +1,34 @@
-const CACHE = 'kounouz-v2';
-const ASSETS = [
-  './manifest.json',
-  './icons/icon-192.png', './icons/icon-512.png'
-];
+// v3 — never cache the app shell. Only static assets.
+const CACHE = 'kounouz-v3';
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
-});
+self.addEventListener('install', e => { self.skipWaiting(); });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-  ).then(() => self.clients.claim()));
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
 });
 
-// Network-first for the app shell (index.html) so admin edits and code
-// updates always show immediately when online. Falls back to cache only
-// when offline. Other static assets (icons, manifest) stay cache-first.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
 
-  const isShell = e.request.mode === 'navigate' || e.request.url.endsWith('index.html') || e.request.url.endsWith('/');
+  // App shell + JS: ALWAYS from network. Never serve a stale app.
+  const isShell = e.request.mode === 'navigate'
+    || url.pathname.endsWith('/')
+    || url.pathname.endsWith('index.html');
+  if (isShell) return; // let the browser handle it normally (no SW cache)
 
-  if (isShell) {
+  // Images/icons: cache-first (safe, they're versioned by filename)
+  if (/\.(png|jpg|jpeg|webp|svg|ico)$/i.test(url.pathname)) {
     e.respondWith(
-      fetch(e.request).then(res => {
+      caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, copy)).catch(()=>{});
         return res;
-      }).catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html')))
+      }).catch(() => hit))
     );
-    return;
   }
-
-  e.respondWith(
-    caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE).then(c => c.put(e.request, copy)).catch(()=>{});
-      return res;
-    }))
-  );
 });
