@@ -297,6 +297,8 @@ td{padding:10px 11px;border-bottom:1px solid rgba(255,255,255,.07)}
 <main id="umrah" class="page"></main>
 <main id="schengen" class="page"></main>
 <main id="country" class="page"></main>
+<main id="appts" class="page"></main>
+<main id="apptBook" class="page"></main>
 <main id="visas" class="page"></main>
 <main id="extras" class="page"></main>
 <main id="flights" class="page"></main>
@@ -393,11 +395,13 @@ const DEFAULTS={
   {id:"services",label:"خدماتنا (أيقونات)",on:true},
   {id:"umrahStrip",label:"عروض الحج والعمرة",on:true},
   {id:"schengenStrip",label:"تأشيرة شنغن الأوروبية",on:true},
+  {id:"apptStrip",label:"حجز مواعيد السفارات",on:true},
   {id:"visaStrip",label:"تأشيرات أخرى",on:true},
   {id:"travelStrip",label:"طيران وفنادق",on:true},
   {id:"extrasStrip",label:"شرائح وتأمين",on:true},
   {id:"cta",label:"شريط التواصل",on:true}]},
  nav:[{id:"home",label:"الرئيسية"},{id:"umrah",label:"الحج والعمرة"},{id:"schengen",label:"شنغن"},
+  {id:"appts",label:"حجز موعد سفارة"},
   {id:"visas",label:"تأشيرات أخرى"},{id:"flights",label:"طيران"},{id:"hotels",label:"فنادق"},
   {id:"extras",label:"شرائح وتأمين"},{id:"request",label:"طلب خدمة"},{id:"track",label:"تتبّع ملفي"},
   {id:"agents",label:"كن وكيلاً"},{id:"contact",label:"تواصل"}],
@@ -511,6 +515,27 @@ const DEFAULTS={
    {ic:"shield",t:"تأمين صحي للسفر",d:"تأمين معتمد ومقبول لدى السفارات، مطلوب أساسي لتأشيرة شنغن.",price:"حسب المدة والعمر",
     feats:"وثيقة معتمدة للسفارات\nتغطية طبية حتى 30,000 يورو\nإصدار خلال ساعات\nتغطي كل دول شنغن"}]},
 
+ /* ===== EMBASSY APPOINTMENTS ===== */
+ appts:{kicker:"حجز المواعيد",title:"احجز موعد سفارة",
+  sub:"نحجزلك موعد التقديم في السفارة ونجهّز ملفك كامل قبل الموعد.",
+  note:"رسوم الحجز لا تشمل رسوم السفارة الرسمية. الموعد يخضع لتوفر المواعيد لدى السفارة.",
+  embassies:[
+   {flag:"🇲🇹",name:"سفارة مالطا",city:"تونس / طرابلس",fee:"حسب الفترة",wait:"من 2 إلى 6 أسابيع",
+    note:"المواعيد محدودة وبتتفتح على فترات — بننبهك أول ما يتفتح موعد.",
+    docs:"جواز السفر (ساري 6 أشهر على الأقل)\nشهادة الميلاد مترجمة ومصدقة\nإثبات الوضع العائلي (عقد زواج / شهادة عزوبية)\nكشف حساب بنكي آخر 6 أشهر\nشهادة عمل أو سجل تجاري\nصورتان شخصيتان بخلفية بيضاء"},
+   {flag:"🇬🇷",name:"سفارة اليونان",city:"تونس / طرابلس",fee:"حسب الفترة",wait:"من 2 إلى 5 أسابيع",
+    note:"اليونان من أسرع السفارات في فتح المواعيد نسبياً.",
+    docs:"جواز السفر (ساري 6 أشهر على الأقل)\nشهادة الميلاد مترجمة ومصدقة\nإثبات الوضع العائلي\nكشف حساب بنكي آخر 6 أشهر\nحجز طيران وفندق مبدئي\nتأمين صحي للسفر\nصورتان شخصيتان بخلفية بيضاء"}
+  ],
+  fields:[
+   {key:"passport",label:"صورة جواز السفر",req:true},
+   {key:"birth",label:"شهادة الميلاد (مترجمة)",req:true},
+   {key:"family",label:"إثبات الوضع العائلي",req:true},
+   {key:"bank",label:"كشف حساب بنكي",req:false},
+   {key:"work",label:"شهادة عمل / سجل تجاري",req:false},
+   {key:"photo",label:"صورة شخصية بخلفية بيضاء",req:false}
+  ]},
+
  /* ===== AGENTS / CONTACT ===== */
  agents:{kicker:"شريك النجاح في مدينتك",title:"افتح فرع كنوز في مدينتك",
   sub:"بندوّر على وكلاء ومستثمرين طموحين لافتتاح فروع تابعة للشركة في المدن الليبية.",
@@ -620,6 +645,16 @@ const SEC={
     <div style="display:flex;align-items:center;gap:10px;margin-top:14px">
      <b style="color:var(--primary);font-family:var(--font-display);font-size:14.5px;flex:1">${esc(x.price)}</b>
      <button class="btn-sm" onclick="go('extras')">التفاصيل</button></div></div>`).join('')}</div>
+  </div></section>`},
+ apptStrip(){const a=C.appts;
+  return `<section class="sec"><div class="wrap">
+   ${head(a.kicker,a.title,a.sub)}
+   <div class="grid g2">${a.embassies.map((e,i)=>`<div class="card" style="display:flex;gap:14px;align-items:flex-start">
+    <div style="font-size:38px;line-height:1">${esc(e.flag)}</div>
+    <div style="flex:1">
+     <h3 style="font-size:18px;font-weight:800">${esc(e.name)}</h3>
+     <p style="color:var(--muted);font-size:13.5px;margin:4px 0 10px;font-weight:300">📍 ${esc(e.city)} · مدة الانتظار ${esc(e.wait)}</p>
+     <button class="btn-sm" onclick="openAppt(${i})">احجز موعد</button></div></div>`).join('')}</div>
   </div></section>`},
  cta(){const c=C.cta;
   return `<section class="sec"><div class="wrap"><div class="offcard" style="min-height:auto;background:var(--primary);text-align:center;justify-content:center;padding:34px 24px">
@@ -752,6 +787,116 @@ function orderCountry(i){
  const c=C.schengen.countries[i];go('request');
  setTimeout(()=>{const s=$('rqService');if(s)s.value='شنغن — '+c.name},60);
 }
+function renderAppts(){
+ const a=C.appts;
+ $('appts').innerHTML=`<section class="sec"><div class="wrap">
+  ${head(a.kicker,a.title,a.sub)}
+  ${a.note?`<div class="alertbar"><span style="font-size:18px">📌</span><div>${esc(a.note)}</div></div>`:''}
+  <div class="grid g2">${a.embassies.map((e,i)=>`<div class="card">
+   <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+    <span style="font-size:38px;line-height:1">${esc(e.flag)}</span>
+    <div><h3 style="font-size:19px;font-weight:800">${esc(e.name)}</h3>
+     <small style="color:var(--muted)">📍 ${esc(e.city)}</small></div></div>
+   <div class="vrow"><span>مدة انتظار الموعد</span><b>${esc(e.wait)}</b></div>
+   <div class="vrow"><span>رسوم الحجز</span><b>${esc(e.fee)}</b></div>
+   <div class="docs" style="margin:12px 0 0"><strong>المستندات المطلوبة</strong>
+    <ul>${lines(e.docs).map(d=>`<li>${esc(d)}</li>`).join('')}</ul></div>
+   ${e.note?`<p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">📌 ${esc(e.note)}</p>`:''}
+   <div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap">
+    <button class="btn btn-accent" onclick="openAppt(${i})">احجز موعد</button>
+    <a class="btn btn-wa" href="${waLink('السلام عليكم، أريد حجز موعد في '+e.name)}" target="_blank">استفسار</a></div>
+  </div>`).join('')}</div>
+ </div></section>`;
+}
+let apptIdx=0,apptFiles={};
+function openAppt(i){apptIdx=i;apptFiles={};renderApptBook();go('apptBook')}
+function renderApptBook(){
+ const e=C.appts.embassies[apptIdx];if(!e)return;
+ $('apptBook').innerHTML=`<section class="sec"><div class="wrap" style="max-width:660px">
+  <div class="sec-head"><span class="kicker">حجز موعد</span>
+   <h2><span style="font-size:1.2em">${esc(e.flag)}</span> ${esc(e.name)}</h2>
+   <p>املأ بياناتك وارفع المستندات، وفريقنا هيحجزلك الموعد ويتواصل معاك.</p></div>
+
+  <div class="docs" style="margin:0 0 20px"><strong>المستندات المطلوبة لهذه السفارة</strong>
+   <ul>${lines(e.docs).map(d=>`<li>${esc(d)}</li>`).join('')}</ul></div>
+
+  <div class="card">
+   <div class="field"><label>الاسم الكامل (كما في الجواز)</label><input id="apName" placeholder="محمد أحمد الفيتوري"></div>
+   <div class="field"><label>رقم الهاتف</label><input id="apPhone" inputmode="tel" placeholder="091 000 0000"></div>
+   <div class="field"><label>رقم الجواز</label><input id="apPass" placeholder="P0000000"></div>
+   <div class="field"><label>الوضع العائلي</label><select id="apFam">
+    <option>أعزب</option><option>متزوج</option><option>متزوج ومعي أفراد الأسرة</option></select></div>
+   <div class="field"><label>عدد الأشخاص المطلوب لهم موعد</label><input id="apCount" type="number" min="1" value="1"></div>
+   <div class="field"><label>تاريخ السفر المتوقع</label><input id="apDate" type="date"></div>
+
+   <div style="margin:18px 0 8px;font-family:var(--font-display);font-weight:800;font-size:15px">المرفقات</div>
+   ${C.appts.fields.map(f=>`<div class="field">
+    <label>${esc(f.label)} ${f.req?'<span style="color:var(--accent)">*</span>':'<small style="color:var(--muted);font-weight:400">(اختياري)</small>'}</label>
+    <div class="drop" onclick="document.getElementById('ap_${f.key}').click()" id="drop_${f.key}">
+     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.4" style="margin:0 auto 5px"><path d="M12 16V4m0 0L8 8m4-4 4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+     اضغط للرفع — صورة أو PDF</div>
+    <input type="file" id="ap_${f.key}" hidden accept="image/*,application/pdf" onchange="pickAppt('${f.key}',this)">
+    <div id="st_${f.key}"></div></div>`).join('')}
+
+   <div class="field"><label>ملاحظات (اختياري)</label><textarea id="apNote" rows="3"></textarea></div>
+   <button class="btn btn-full" id="apSubmit" onclick="submitAppt()">أرسل طلب الموعد</button>
+   <p style="text-align:center;color:var(--muted);font-size:12.5px;margin:12px 0 0">
+    المرفقات بتتخزن بشكل آمن ومحدش يقدر يوصلها غير فريق كنوز.</p>
+  </div></div></section>`;
+}
+function pickAppt(key,inp){
+ const f=inp.files[0];if(!f)return;
+ apptFiles[key]=f;
+ $('st_'+key).innerHTML=`<div class="fileitem">✓ ${esc(f.name)} <button class="mini del" style="margin-inline-start:auto" onclick="delAppt('${key}')">إزالة</button></div>`;
+ $('drop_'+key).style.borderColor='var(--primary-soft)';
+}
+function delAppt(key){delete apptFiles[key];$('st_'+key).innerHTML='';$('drop_'+key).style.borderColor=''}
+async function submitAppt(){
+ const e=C.appts.embassies[apptIdx];
+ const n=$('apName').value.trim(),p=$('apPhone').value.trim();
+ if(!n||!p){openM(`<h3 style="font-size:19px">ناقص بيانات</h3><p style="color:var(--muted)">اكتب الاسم ورقم الهاتف.</p><button class="btn btn-full" onclick="closeM()">تمام</button>`);return}
+ const missing=C.appts.fields.filter(f=>f.req&&!apptFiles[f.key]);
+ if(missing.length){openM(`<h3 style="font-size:19px">مرفقات ناقصة</h3><p style="color:var(--muted);font-size:14px">لازم ترفع: ${missing.map(m=>esc(m.label)).join('، ')}</p><button class="btn btn-full" onclick="closeM()">تمام</button>`);return}
+ if(!sb){openM(`<h3 style="font-size:19px">مفيش اتصال</h3><button class="btn btn-full" onclick="closeM()">تمام</button>`);return}
+
+ const btn=$('apSubmit');btn.disabled=true;btn.textContent='⏳ جاري الإرسال…';
+ guardUnload(true);
+ try{
+  const {data,error}=await sb.from('requests').insert({
+   full_name:n,phone:p,passport_no:$('apPass').value.trim(),
+   service:'موعد سفارة — '+e.name,
+   travel_date:$('apDate').value||null,
+   note:`الوضع العائلي: ${$('apFam').value} | عدد الأشخاص: ${$('apCount').value}\n${$('apNote').value.trim()}`,
+   status:'new',step:0}).select('id,ref').single();
+  if(error||!data)throw new Error(error&&error.message||'فشل إنشاء الطلب');
+
+  let uploaded=0;
+  for(const f of C.appts.fields){
+   const file=apptFiles[f.key];if(!file)continue;
+   btn.textContent=`⏳ رفع المرفقات (${uploaded+1})…`;
+   const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+   const path=`${data.ref}/${f.key}_${Date.now()}.${ext}`;
+   const up=await sb.storage.from('documents').upload(path,file,{cacheControl:'3600',upsert:false});
+   if(!up.error){
+    await sb.from('request_files').insert({request_id:data.id,file_name:f.label,file_path:path});
+    uploaded++;
+   }
+  }
+  guardUnload(false);
+  btn.disabled=false;btn.textContent='أرسل طلب الموعد';
+  openM(`<div style="text-align:center"><div style="font-size:40px">📅</div>
+   <h3 style="font-size:21px;margin-top:8px">وصلنا طلب الموعد</h3>
+   <p style="color:var(--muted);margin:8px 0 12px">رقم المتابعة بتاعك:</p>
+   <div style="font-family:var(--font-display);font-size:28px;font-weight:800;color:var(--primary);letter-spacing:2px">${esc(data.ref)}</div>
+   <p style="color:var(--muted);font-size:13px;margin-top:10px">تم رفع ${uploaded} مرفق. هنتواصل معاك فور توفر موعد.</p>
+   <button class="btn btn-full" style="margin-top:16px" onclick="closeM();$('trackId').value='${esc(data.ref)}';go('track');doTrack()">تتبّع الطلب</button></div>`);
+  apptFiles={};renderApptBook();
+  if(adOpen)reloadRequests();
+ }catch(err){
+  guardUnload(false);btn.disabled=false;btn.textContent='أرسل طلب الموعد';
+  openM(`<h3 style="font-size:19px">حصل خطأ</h3><p style="color:var(--muted);font-size:13px">${esc(err.message||err)}</p><button class="btn btn-full" onclick="closeM()">تمام</button>`);
+ }
+}
 function renderVisasPage(){
  const v=C.visas;
  $('visas').innerHTML=`<section class="sec"><div class="wrap">
@@ -840,6 +985,7 @@ function renderAll(){
  $('brandBox').innerHTML=logo+`<span><b>${esc(b.name)}</b><span class="sub">${esc(b.sub)}</span></span>`;
  ['navDesk','navMob'].forEach(k=>{$(k).innerHTML=C.nav.map(p=>`<a data-p="${p.id}" onclick="go('${p.id}')${k==='navMob'?';drawer()':''}">${esc(p.label)}</a>`).join('')});
  renderHome();renderUmrah();renderSchengen();renderVisasPage();renderExtras();
+ renderAppts();if(C.appts.embassies[apptIdx])renderApptBook();
  renderFlights();renderHotels();renderAgents();renderContact();
  if(C.schengen.countries[curCountry])renderCountry();
 
@@ -941,6 +1087,7 @@ function closeM(){$('modal').classList.remove('open')}
 let adOpen=false,adTab='layout';
 const TABS=[{k:'layout',t:'🧱 ترتيب الصفحة'},{k:'hero',t:'🖼️ الهيرو'},{k:'services',t:'⚡ الأيقونات'},
  {k:'umrah',t:'🕋 العمرة'},{k:'schengen',t:'🇪🇺 شنغن'},{k:'quiz',t:'❓ أسئلة التقييم'},
+ {k:'appts',t:'📅 مواعيد السفارات'},
  {k:'visas',t:'🛂 تأشيرات أخرى'},{k:'extras',t:'📱 شرائح وتأمين'},{k:'flights',t:'✈️ الطيران'},
  {k:'hotels',t:'🏨 الفنادق'},{k:'travel',t:'🧳 بطاقات السفر'},{k:'agents',t:'🤝 الوكلاء'},
  {k:'brand',t:'🏷️ الهوية'},{k:'theme',t:'🎨 المظهر'},{k:'depts',t:'📞 الأقسام'},
@@ -1097,6 +1244,39 @@ function renderAdmin(){
    <button class="mini" onclick="C.schengen.quiz[${i}].o.push({t:'إجابة',w:5});renderAdmin()">+ إجابة</button></div>`).join('')
   +addBtn("C.schengen.quiz.push({q:'سؤال جديد',o:[{t:'نعم',w:10},{t:'لا',w:3}]});renderAll();renderAdmin()",'سؤال');
 
+ if(adTab==='appts') B.innerHTML=`<div class="ad-note">السفارات اللي بتحجزلهم مواعيد، والمرفقات المطلوبة من العميل.</div>
+  ${txt('الكيكر','appts.kicker')}${txt('العنوان','appts.title')}${area('الوصف','appts.sub',2)}${area('تنويه','appts.note',2)}
+  <hr style="border-color:rgba(255,255,255,.1);margin:18px 0">
+  <div style="font-family:var(--font-display);font-weight:800;margin-bottom:10px">السفارات</div>`+
+  C.appts.embassies.map((e,i)=>`<div class="item"><div class="item-h"><b>${esc(e.flag)} ${esc(e.name)}</b>
+   <button class="mini" onclick="moveArr(C.appts.embassies,${i},-1)">↑</button>
+   <button class="mini" onclick="moveArr(C.appts.embassies,${i},1)">↓</button>
+   <button class="mini del" onclick="C.appts.embassies.splice(${i},1);renderAll();renderAdmin()">حذف</button></div>
+   <div class="frow c2">
+    <div class="fld"><label>العلم</label><input value="${at(e.flag)}" oninput="C.appts.embassies[${i}].flag=this.value"></div>
+    <div class="fld"><label>اسم السفارة</label><input value="${at(e.name)}" oninput="C.appts.embassies[${i}].name=this.value"></div></div>
+   <div class="frow c3">
+    <div class="fld"><label>المدينة/المقر</label><input value="${at(e.city)}" oninput="C.appts.embassies[${i}].city=this.value"></div>
+    <div class="fld"><label>مدة الانتظار</label><input value="${at(e.wait)}" oninput="C.appts.embassies[${i}].wait=this.value"></div>
+    <div class="fld"><label>رسوم الحجز</label><input value="${at(e.fee)}" oninput="C.appts.embassies[${i}].fee=this.value"></div></div>
+   <div class="fld"><label>المستندات المطلوبة (سطر لكل مستند)</label>
+    <textarea rows="7" oninput="C.appts.embassies[${i}].docs=this.value">${esc(e.docs)}</textarea></div>
+   <div class="fld"><label>ملاحظة</label><textarea rows="2" oninput="C.appts.embassies[${i}].note=this.value">${esc(e.note)}</textarea></div></div>`).join('')
+  +addBtn("C.appts.embassies.push({flag:'🏳️',name:'سفارة جديدة',city:'',fee:'حسب الفترة',wait:'—',note:'',docs:'جواز السفر\\nشهادة الميلاد'});renderAll();renderAdmin()",'سفارة')
+  +`<hr style="border-color:rgba(255,255,255,.1);margin:20px 0">
+  <div style="font-family:var(--font-display);font-weight:800;margin-bottom:6px">خانات رفع المرفقات</div>
+  <div class="ad-note">دي خانات الرفع اللي بتظهر للعميل في نموذج الحجز. علّم "إجباري" على اللي ما ينفعش من غيره.</div>`+
+  C.appts.fields.map((f,i)=>`<div class="item"><div class="item-h"><b>${esc(f.label)}</b>
+   <button class="mini" onclick="moveArr(C.appts.fields,${i},-1)">↑</button>
+   <button class="mini" onclick="moveArr(C.appts.fields,${i},1)">↓</button>
+   <button class="mini del" onclick="C.appts.fields.splice(${i},1);renderAll();renderAdmin()">حذف</button></div>
+   <div class="frow c2">
+    <div class="fld"><label>اسم المرفق</label><input value="${at(f.label)}" oninput="C.appts.fields[${i}].label=this.value"></div>
+    <div class="fld"><label>المعرّف (إنجليزي بدون مسافات)</label><input value="${at(f.key)}" oninput="C.appts.fields[${i}].key=this.value.replace(/[^a-z0-9_]/gi,'')"></div></div>
+   <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:rgba(255,255,255,.8)">
+    <input type="checkbox" style="width:auto" ${f.req?'checked':''} onchange="C.appts.fields[${i}].req=this.checked;renderAll()"> مرفق إجباري</label></div>`).join('')
+  +addBtn("C.appts.fields.push({key:'doc'+Date.now().toString().slice(-4),label:'مرفق جديد',req:false});renderAll();renderAdmin()",'خانة مرفق');
+
  if(adTab==='visas') B.innerHTML=`<div class="ad-note">التأشيرات غير الأوروبية.</div>
   ${txt('الكيكر','visas.kicker')}${txt('العنوان','visas.title')}${area('الوصف','visas.sub',2)}${area('شريط التنويه','visas.alert',2)}
   <hr style="border-color:rgba(255,255,255,.1);margin:18px 0">`+
@@ -1203,7 +1383,8 @@ function renderAdmin(){
   ${REQUESTS.length?REQUESTS.map((r,i)=>`<tr><td><b>${r.id}</b></td><td>${esc(r.name)}</td><td>${esc(r.service)}</td>
    <td><a href="tel:${r.phone}" style="color:#8FD3E0">${r.phone}</a></td>
    <td><span class="pill ${m[r.status][0]}">${m[r.status][1]}</span></td>
-   <td><button class="mini" onclick="nextStep(${i})">نقل ←</button></td></tr>`).join('')
+   <td><button class="mini" onclick="nextStep(${i})">نقل ←</button>
+    <button class="mini" onclick="viewDocs('${esc(r.dbid||'')}','${esc(r.id)}')">مرفقات</button></td></tr>`).join('')
    :'<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,.4)">مفيش طلبات لسه</td></tr>'}
   </tbody></table></div>`;
  }
@@ -1211,6 +1392,23 @@ function renderAdmin(){
   <div class="item"><div class="item-h"><b>تصدير</b></div><button class="btn-full" style="background:var(--accent);color:#3a2000" onclick="exportJSON()">تنزيل الإعدادات</button></div>
   <div class="item"><div class="item-h"><b>استيراد</b></div><input type="file" accept=".json" onchange="importJSON(this)"></div>
   <div class="item"><div class="item-h"><b>إعادة الضبط</b></div><button class="mini del" onclick="if(confirm('متأكد؟'))resetAll()">رجّع كل حاجة زي الأول</button></div>`;
+}
+async function viewDocs(dbid,ref){
+ if(!dbid||!sb){openM(`<h3 style="font-size:18px">مفيش مرفقات</h3><button class="btn btn-full" onclick="closeM()">تمام</button>`);return}
+ openM(`<div style="text-align:center;color:var(--muted)">جاري تحميل المرفقات…</div>`);
+ const {data,error}=await sb.from('request_files').select('file_name,file_path').eq('request_id',dbid);
+ if(error||!data||!data.length){
+  openM(`<h3 style="font-size:18px">مفيش مرفقات للطلب ${esc(ref)}</h3><button class="btn btn-full" style="margin-top:12px" onclick="closeM()">تمام</button>`);return}
+ const rows=[];
+ for(const f of data){
+  const {data:sig}=await sb.storage.from('documents').createSignedUrl(f.file_path,3600);
+  rows.push(`<a class="fileitem" style="text-decoration:none" href="${sig?sig.signedUrl:'#'}" target="_blank">
+   📎 ${esc(f.file_name)} <span style="margin-inline-start:auto;color:var(--primary);font-weight:700">فتح</span></a>`);
+ }
+ openM(`<h3 style="font-size:19px;margin-bottom:12px">مرفقات ${esc(ref)}</h3>
+  <div style="display:grid;gap:8px">${rows.join('')}</div>
+  <p style="color:var(--muted);font-size:12px;margin-top:12px">الروابط دي مؤقتة وبتنتهي بعد ساعة لأسباب أمنية.</p>
+  <button class="btn btn-full" style="margin-top:12px" onclick="closeM()">إغلاق</button>`);
 }
 function moveArr(a,i,d){const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];renderAll();renderAdmin()}
 async function nextStep(i){const r=REQUESTS[i],mx=C.trackSteps.length-1;
@@ -1332,7 +1530,7 @@ setTimeout(hideSplash,4000); // safety net
 boot();
 
 /* Force any stale cached build to update itself, once. */
-const BUILD='2026-08-02-c';
+const BUILD='2026-08-02-d';
 if('serviceWorker' in navigator){
  window.addEventListener('load',async()=>{
   try{
