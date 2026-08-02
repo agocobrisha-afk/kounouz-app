@@ -277,6 +277,13 @@ td{padding:10px 11px;border-bottom:1px solid rgba(255,255,255,.07)}
 </head>
 <body>
 
+<div id="splash" style="position:fixed;inset:0;z-index:200;background:#12333B;display:grid;place-items:center;transition:opacity .3s">
+ <div style="text-align:center">
+  <img src="./images/logo.jpg" alt="" style="width:76px;height:76px;border-radius:50%;margin:0 auto 14px">
+  <div style="color:rgba(255,255,255,.5);font-family:Tajawal,sans-serif;font-size:13px">جاري التحميل…</div>
+ </div>
+</div>
+
 <header class="top"><div class="wrap top-in">
  <span id="backHolder"></span>
  <a class="brand" onclick="go('home')" id="brandBox"></a>
@@ -634,7 +641,7 @@ function scrollCar(id,dir){
 function visaCard(v,i){
  const img=v.img?`<img src="${at(v.img)}" alt="${at(v.name)}" loading="lazy">`:`<div class="noimg">${esc(v.flag)}</div>`;
  return `<article class="visa">
-  <div class="visa-img">${img}${v.note?'<span class="stamp">تنويه</span>':''}</div>
+  <div class="visa-img">${img}</div>
   <div class="visa-head"><div class="flagline"><em>${esc(v.flag)}</em> ${esc(v.type)}</div><h3>${esc(v.name)}</h3></div>
   <div class="vrows">
    <div class="vrow"><span>مدة الإنجاز</span><b>${esc(v.time)}</b></div>
@@ -862,11 +869,20 @@ function safeHistory(fn){if(!historyOK)return;try{fn()}catch(e){historyOK=false}
 function go(id,fromPop){
  document.querySelectorAll('.page').forEach(p=>p.classList.remove('live'));
  const t=$(id);if(t)t.classList.add('live');cur=id;markNav();window.scrollTo({top:0,behavior:'instant'});
- if(!fromPop){navStack.push(id);safeHistory(()=>history.pushState({page:id},'','#'+id))}
+ // keep the address bar clean — no #hash at all. Back/forward still work
+ // because the page name is stored in the history state object.
+ if(!fromPop){navStack.push(id);safeHistory(()=>history.pushState({page:id},'',location.pathname))}
  renderBack();
 }
 window.addEventListener('popstate',e=>{go((e.state&&e.state.page)||'home',true)});
-safeHistory(()=>history.replaceState({page:'home'},'',location.hash||'#home'));
+safeHistory(()=>history.replaceState({page:'home'},'',location.pathname));
+// allow opening the panel by typing #admin even while the page is already open
+window.addEventListener('hashchange',()=>{
+ if(location.hash==='#admin'){
+  safeHistory(()=>history.replaceState({page:cur},'',location.pathname));
+  if(!adOpen)openGate();
+ }
+});
 function goBack(){
  if(historyOK){history.back();return}
  if(navStack.length>1){navStack.pop();go(navStack[navStack.length-1],true)}else go('home',true);
@@ -1225,7 +1241,7 @@ async function applyAll(){
  guardUnload(false);
  if(btn){btn.disabled=false;btn.textContent=ok?'✅ تم الحفظ':'⚠️ فشل الحفظ';
   setTimeout(()=>{btn.textContent=orig},2500)}
- if(ok)openM(`<div style="text-align:center"><div style="font-size:36px">✅</div><h3 style="font-size:19px;margin-top:8px">اتحفظ على كل الأجهزة</h3><button class="btn btn-full" style="margin-top:14px" onclick="closeM();closeAdmin()">شوف الموقع</button></div>`);
+ if(ok)openM(`<div style="text-align:center"><div style="font-size:36px">✅</div><h3 style="font-size:19px;margin-top:8px">اتحفظ على كل الأجهزة</h3><p style="color:var(--muted);font-size:13px;margin:8px 0 0">تقدر تكمّل تعديل عادي.</p><button class="btn btn-full" style="margin-top:14px" onclick="closeM()">تمام</button></div>`);
  else openM(`<div style="text-align:center"><div style="font-size:36px">⚠️</div><h3 style="font-size:19px;margin-top:8px">فشل الحفظ</h3><p style="color:var(--muted);font-size:12.5px;direction:ltr;text-align:left;background:#f5f5f5;padding:8px;border-radius:8px;margin-top:9px">${esc(errMsg)}</p><button class="btn btn-full" style="margin-top:14px" onclick="closeM()">تمام</button></div>`);
 }
 function exportJSON(){const blob=new Blob([JSON.stringify({config:C},null,2)],{type:'application/json'});
@@ -1279,27 +1295,44 @@ async function uploadToStorage(file){
  return{url:data.publicUrl,errMsg:''};
 }
 async function boot(){
- renderAll();
- if(location.hash==='#admin'){
-  // don't leave #admin in the address bar — a refresh should reopen the SITE
-  safeHistory(()=>history.replaceState({page:'home'},'','#home'));
-  openGate();
+ const wantAdmin = location.hash==='#admin';
+ // clear the hash immediately so a refresh never re-opens the panel
+ safeHistory(()=>history.replaceState({page:'home'},'',location.pathname));
+
+ // Fetch the saved settings BEFORE the first paint so the visitor never
+ // sees the built-in images flash and then get replaced.
+ if(sb){
+  try{
+   const timeout=new Promise(res=>setTimeout(()=>res(null),2500));
+   const fetchCfg=sb.from('site_settings').select('config').eq('id',1).maybeSingle();
+   const res=await Promise.race([fetchCfg,timeout]);
+   if(res&&!res.error&&res.data&&res.data.config){
+    C=deepMerge(JSON.parse(JSON.stringify(DEFAULTS)),res.data.config);
+   }else if(res&&!res.error&&!res.data){
+    sb.from('site_settings').insert({id:1,config:C});
+   }
+  }catch(e){console.warn('cloud load failed',e)}
  }
- if(!sb)return;
- try{
-  const {data,error}=await sb.from('site_settings').select('config').eq('id',1).maybeSingle();
-  if(!error&&data&&data.config)C=deepMerge(JSON.parse(JSON.stringify(DEFAULTS)),data.config);
-  else if(!error&&!data)await sb.from('site_settings').insert({id:1,config:C});
-  const {data:reqs}=await sb.from('requests').select('*').order('created_at',{ascending:false}).limit(200);
-  if(reqs)REQUESTS=reqs.map(r=>({id:r.ref,dbid:r.id,name:r.full_name,service:r.service,phone:r.phone,status:r.status,step:r.step}));
- }catch(e){console.warn('cloud load failed',e)}
+
  renderAll();
- if(adOpen)renderAdmin();
+ hideSplash();
+ if(wantAdmin)openGate();
+
+ // requests can load lazily in the background
+ if(sb){
+  try{
+   const {data:reqs}=await sb.from('requests').select('*').order('created_at',{ascending:false}).limit(200);
+   if(reqs){REQUESTS=reqs.map(r=>({id:r.ref,dbid:r.id,name:r.full_name,service:r.service,phone:r.phone,status:r.status,step:r.step}));
+    if(adOpen)renderAdmin()}
+  }catch(e){}
+ }
 }
+function hideSplash(){const s=$('splash');if(s){s.style.opacity='0';setTimeout(()=>s.remove(),300)}}
+setTimeout(hideSplash,4000); // safety net
 boot();
 
 /* Force any stale cached build to update itself, once. */
-const BUILD='2026-08-02-b';
+const BUILD='2026-08-02-c';
 if('serviceWorker' in navigator){
  window.addEventListener('load',async()=>{
   try{
