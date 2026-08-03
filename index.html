@@ -356,6 +356,10 @@ td{padding:10px 11px;border-bottom:1px solid rgba(255,255,255,.07)}
 </div>
 
 <script>
+/* Capture the entry hash IMMEDIATELY — before any history cleanup runs,
+   otherwise #admin gets wiped before boot() can read it. */
+const ENTRY_HASH = location.hash;
+
 /* ============ ICONS ============ */
 const ICONS={
  visa:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.2"/><path d="M5.6 16.4c.5-1.7 1.8-2.6 3.4-2.6s2.9.9 3.4 2.6M15 9.5h4M15 13h4"/>',
@@ -382,7 +386,7 @@ const DEFAULTS={
  brand:{name:"كنوز للسياحة",sub:"KOUNOUZ · TRIPOLI",logo:"./images/logo.jpg",
   tagline:"للسفر والسياحة والتأشيرات",whatsapp:"218910331900",email:"info@kounouz.ly",
   address:"طرابلس – قرجي، قبل مدرسة موسى بن نصير على اليمين بتجاهك إلى جزيرة سوق الثلاثاء.",
-  copyright:"© 2026 شركة كنوز للخدمات السياحية والحج والعمرة",adminPass:"kounouz"},
+  copyright:"© 2026 شركة كنوز للخدمات السياحية والحج والعمرة",adminPass:"kounouz",showInstallBar:false},
  theme:{primary:"#1F5A68",primarySoft:"#2E7C8C",dark:"#12333B",accent:"#E8871E",
   bg:"#F7F4EF",ink:"#12333B",tint:"#DCEAED",radius:18,gap:52,maxWidth:1120,
   fontBody:"Tajawal",fontDisplay:"Almarai",fontFlourish:"Aref Ruqaa"},
@@ -1349,7 +1353,8 @@ function renderAdmin(){
   ${txt('اسم الشركة','brand.name')}${txt('السطر الفرعي','brand.sub')}${txt('التاغلاين','brand.tagline')}
   ${txt('رقم واتساب (دولي بدون +)','brand.whatsapp')}${txt('البريد','brand.email')}
   ${area('العنوان','brand.address',2)}${txt('حقوق النشر','brand.copyright')}
-  ${txt('كلمة مرور اللوحة','brand.adminPass')}`;
+  ${txt('كلمة مرور اللوحة','brand.adminPass')}
+  ${toggle('عرض شريط \"ثبّت التطبيق\" للزوار','brand.showInstallBar')}`;
 
  if(adTab==='theme') B.innerHTML=`<div class="frow c2">${color('اللون الأساسي','theme.primary')}${color('الأساسي الفاتح','theme.primarySoft')}</div>
   <div class="frow c2">${color('الغامق','theme.dark')}${color('لون التمييز','theme.accent')}</div>
@@ -1493,7 +1498,7 @@ async function uploadToStorage(file){
  return{url:data.publicUrl,errMsg:''};
 }
 async function boot(){
- const wantAdmin = location.hash==='#admin';
+ const wantAdmin = ENTRY_HASH==='#admin';
  // clear the hash immediately so a refresh never re-opens the panel
  safeHistory(()=>history.replaceState({page:'home'},'',location.pathname));
 
@@ -1530,7 +1535,7 @@ setTimeout(hideSplash,4000); // safety net
 boot();
 
 /* Force any stale cached build to update itself, once. */
-const BUILD='2026-08-02-d';
+const BUILD='2026-08-02-e';
 if('serviceWorker' in navigator){
  window.addEventListener('load',async()=>{
   try{
@@ -1551,9 +1556,11 @@ if('serviceWorker' in navigator){
  });
 }
 let deferredPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;showInstall()});
+// شريط "ثبّت التطبيق" — مقفول افتراضياً. شغّله من لوحة التحكم لو حبيت.
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;
+ if(C.brand&&C.brand.showInstallBar)showInstall();});
 function showInstall(){
- if($('installBar'))return;
+ if($('installBar')||!deferredPrompt)return;
  const d=document.createElement('div');d.id='installBar';
  d.style.cssText='position:fixed;inset-inline:14px;bottom:80px;z-index:88;background:var(--dark);color:#fff;border-radius:16px;padding:13px 15px;display:flex;gap:11px;align-items:center;box-shadow:0 14px 40px -14px rgba(0,0,0,.6)';
  d.innerHTML='<div style="flex:1;font-size:13.5px;line-height:1.5">ثبّت تطبيق كنوز<br><span style="opacity:.6;font-size:12px">يفتح زي أي تطبيق</span></div>'+
