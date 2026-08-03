@@ -356,9 +356,11 @@ td{padding:10px 11px;border-bottom:1px solid rgba(255,255,255,.07)}
 </div>
 
 <script>
-/* Capture the entry hash IMMEDIATELY — before any history cleanup runs,
-   otherwise #admin gets wiped before boot() can read it. */
+/* Capture the entry point IMMEDIATELY — before any history cleanup runs.
+   Admin opens via /admin (clean path) or the legacy #admin hash. */
 const ENTRY_HASH = location.hash;
+const ENTRY_ADMIN = ENTRY_HASH==='#admin' || /^\/admin\/?$/.test(location.pathname);
+const BASE_PATH = /^\/admin\/?$/.test(location.pathname) ? '/' : location.pathname;
 
 /* ============ ICONS ============ */
 const ICONS={
@@ -1021,15 +1023,15 @@ function go(id,fromPop){
  const t=$(id);if(t)t.classList.add('live');cur=id;markNav();window.scrollTo({top:0,behavior:'instant'});
  // keep the address bar clean — no #hash at all. Back/forward still work
  // because the page name is stored in the history state object.
- if(!fromPop){navStack.push(id);safeHistory(()=>history.pushState({page:id},'',location.pathname))}
+ if(!fromPop){navStack.push(id);safeHistory(()=>history.pushState({page:id},'',BASE_PATH))}
  renderBack();
 }
 window.addEventListener('popstate',e=>{go((e.state&&e.state.page)||'home',true)});
-safeHistory(()=>history.replaceState({page:'home'},'',location.pathname));
+safeHistory(()=>history.replaceState({page:'home'},'',BASE_PATH));
 // allow opening the panel by typing #admin even while the page is already open
 window.addEventListener('hashchange',()=>{
  if(location.hash==='#admin'){
-  safeHistory(()=>history.replaceState({page:cur},'',location.pathname));
+  safeHistory(()=>history.replaceState({page:cur},'',BASE_PATH));
   if(!adOpen)openGate();
  }
 });
@@ -1450,7 +1452,7 @@ async function applyAll(){
 function exportJSON(){const blob=new Blob([JSON.stringify({config:C},null,2)],{type:'application/json'});
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kounouz-settings.json';a.click()}
 function importJSON(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();
- rd.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.config)C=deepMerge(JSON.parse(JSON.stringify(DEFAULTS)),d.config);renderAll();renderAdmin();alert('تم الاستيراد')}catch(err){alert('الملف مش صالح')}};rd.readAsText(f)}
+ rd.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.config)C=reconcile(deepMerge(JSON.parse(JSON.stringify(DEFAULTS)),d.config));renderAll();renderAdmin();alert('تم الاستيراد')}catch(err){alert('الملف مش صالح')}};rd.readAsText(f)}
 function resetAll(){C=JSON.parse(JSON.stringify(DEFAULTS));renderAll();renderAdmin()}
 
 /* ============ SUPABASE ============ */
@@ -1465,6 +1467,22 @@ function deepMerge(base,over){
  if(base&&typeof base==='object'){const out={...base};
   for(const k in over){out[k]=(k in base)?deepMerge(base[k],over[k]):over[k]}return out}
  return over===undefined?base:over;
+}
+/* Saved configs store layout/nav as plain arrays, so an old saved list would
+   silently delete any NEW section added later in the code. This re-adds any
+   default entry that's missing from the saved list, keeping the user's order. */
+function mergeById(savedArr,defArr){
+ const saved=Array.isArray(savedArr)?savedArr:[];
+ const seen=new Set(saved.map(x=>x&&x.id));
+ const merged=saved.filter(x=>x&&defArr.some(d=>d.id===x.id));
+ defArr.forEach((d,i)=>{ if(!seen.has(d.id)) merged.splice(Math.min(i,merged.length),0,{...d}); });
+ return merged;
+}
+function reconcile(cfg){
+ if(cfg.layout&&cfg.layout.sections)
+  cfg.layout.sections=mergeById(cfg.layout.sections,DEFAULTS.layout.sections);
+ if(cfg.nav) cfg.nav=mergeById(cfg.nav,DEFAULTS.nav);
+ return cfg;
 }
 // Never let base64 / blob images reach the database — that's what bloated
 // the config to 1MB before and broke every save.
@@ -1484,7 +1502,7 @@ async function saveToCloud(){
  const size=JSON.stringify(clean).length;
  if(size>400000)return{ok:false,errMsg:'حجم الإعدادات كبير جداً ('+Math.round(size/1024)+'KB). استخدم روابط صور بدل رفع صور ضخمة.'};
  try{const {error}=await sb.from('site_settings').upsert({id:1,config:clean,updated_at:new Date().toISOString()});
-  if(!error)C=deepMerge(JSON.parse(JSON.stringify(DEFAULTS)),clean);
+  if(!error)C=reconcile(deepMerge(JSON.parse(JSON.stringify(DEFAULTS)),clean));
   return{ok:!error,errMsg:error?(error.message||JSON.stringify(error)):''}}
  catch(e){return{ok:false,errMsg:(e&&e.message)||String(e)}}
 }
@@ -1498,9 +1516,9 @@ async function uploadToStorage(file){
  return{url:data.publicUrl,errMsg:''};
 }
 async function boot(){
- const wantAdmin = ENTRY_HASH==='#admin';
+ const wantAdmin = ENTRY_ADMIN;
  // clear the hash immediately so a refresh never re-opens the panel
- safeHistory(()=>history.replaceState({page:'home'},'',location.pathname));
+ safeHistory(()=>history.replaceState({page:'home'},'',BASE_PATH));
 
  // Fetch the saved settings BEFORE the first paint so the visitor never
  // sees the built-in images flash and then get replaced.
@@ -1510,7 +1528,7 @@ async function boot(){
    const fetchCfg=sb.from('site_settings').select('config').eq('id',1).maybeSingle();
    const res=await Promise.race([fetchCfg,timeout]);
    if(res&&!res.error&&res.data&&res.data.config){
-    C=deepMerge(JSON.parse(JSON.stringify(DEFAULTS)),res.data.config);
+    C=reconcile(deepMerge(JSON.parse(JSON.stringify(DEFAULTS)),res.data.config));
    }else if(res&&!res.error&&!res.data){
     sb.from('site_settings').insert({id:1,config:C});
    }
@@ -1535,7 +1553,7 @@ setTimeout(hideSplash,4000); // safety net
 boot();
 
 /* Force any stale cached build to update itself, once. */
-const BUILD='2026-08-02-e';
+const BUILD='2026-08-02-f';
 if('serviceWorker' in navigator){
  window.addEventListener('load',async()=>{
   try{
